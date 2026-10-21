@@ -1,0 +1,9 @@
+type Query {
+  propertyServiceInfo: PropertyServiceInfo!
+}
+
+type PropertyServiceInfo {
+  name: String!
+  version: String!
+}
+
