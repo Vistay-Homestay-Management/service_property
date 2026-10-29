@@ -30,6 +30,22 @@ spring:
       path: /graphql
     graphiql:
       enabled: false
+  grpc:
+    server:
+      port: ${GRPC_SERVER_PORT:9090}
+      ssl:
+        enabled: ${GRPC_TLS_ENABLED:true}
+        bundle: ${GRPC_SSL_BUNDLE:grpc-property-server}
+        client-auth: require
+  ssl:
+    bundle:
+      pem:
+        grpc-property-server:
+          keystore:
+            certificate: ${PROPERTY_GRPC_SERVER_CERT:file:/run/secrets/grpc/server.crt}
+            private-key: ${PROPERTY_GRPC_SERVER_KEY:file:/run/secrets/grpc/server.key}
+          truststore:
+            certificate: ${PROPERTY_GRPC_CLIENT_CA_CERT:file:/run/secrets/grpc/ca.crt}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
     properties:
@@ -61,6 +77,11 @@ management:
       probes:
         enabled: true
       show-details: never
+
+vistay:
+  grpc:
+    allowed-caller-uris: ${GRPC_ALLOWED_CALLER_URIS:spiffe://vistay/service/booking}
+    maximum-deadline: ${GRPC_MAXIMUM_DEADLINE:2s}
 
 logging:
   structured:
