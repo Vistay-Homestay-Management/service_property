@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ public class PropertyBranchMembershipService {
     private final PropertyBranchMembershipRepository memberships;
     private final Clock clock;
 
+    @Autowired
     public PropertyBranchMembershipService(PropertyBranchMembershipRepository memberships) {
         this(memberships, Clock.systemUTC());
     }

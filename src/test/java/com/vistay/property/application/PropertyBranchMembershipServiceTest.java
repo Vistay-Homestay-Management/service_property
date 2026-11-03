@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class PropertyBranchMembershipServiceTest {
     private static final Instant NOW = Instant.parse("2026-10-29T05:00:00Z");
@@ -17,6 +18,14 @@ class PropertyBranchMembershipServiceTest {
     private static final UUID BRANCH_A = UUID.fromString("20000000-0000-0000-0000-000000000001");
     private static final UUID BRANCH_B = UUID.fromString("20000000-0000-0000-0000-000000000002");
     private static final UUID ADMIN_ID = UUID.fromString("30000000-0000-0000-0000-000000000001");
+
+    @Test
+    void productionConstructorIsExplicitlySelectedForSpringInjection() throws NoSuchMethodException {
+        var constructor = PropertyBranchMembershipService.class
+            .getConstructor(PropertyBranchMembershipRepository.class);
+
+        assertThat(constructor.isAnnotationPresent(Autowired.class)).isTrue();
+    }
 
     @Test
     void createsFirstVersionForAnUnmappedProperty() {
