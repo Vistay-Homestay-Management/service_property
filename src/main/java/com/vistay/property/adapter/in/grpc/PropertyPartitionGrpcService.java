@@ -9,11 +9,15 @@ import com.vistay.property.config.GrpcTrustBoundaryInterceptor;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
 
 @GrpcService(interceptors = GrpcTrustBoundaryInterceptor.class)
 public class PropertyPartitionGrpcService
     extends PropertyPartitionServiceGrpc.PropertyPartitionServiceImplBase {
+
+    private static final Logger log = LoggerFactory.getLogger(PropertyPartitionGrpcService.class);
 
     private final PropertyPartitionRecordReader records;
 
@@ -39,6 +43,7 @@ public class PropertyPartitionGrpcService
         try {
             record = records.find(propertyId);
         } catch (RuntimeException unavailable) {
+            log.error("Property partition lookup failed for propertyId={}", propertyId, unavailable);
             responseObserver.onError(Status.UNAVAILABLE
                 .withDescription("Property partition repository is unavailable")
                 .withCause(unavailable).asRuntimeException());

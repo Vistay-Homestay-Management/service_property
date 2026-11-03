@@ -3,12 +3,16 @@ package com.vistay.property;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.vistay.property.adapter.out.persistence.JdbcPropertyBranchMembershipRepository;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.time.Instant;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
 class PropertyBranchTopologyMigrationIntegrationTest {
@@ -81,6 +85,19 @@ class PropertyBranchTopologyMigrationIntegrationTest {
                         '00000000-0000-0000-0000-000000000005', 2,
                         '2026-03-01T00:00:00Z', 'Non-overlapping reassignment');
                 """);
+
+            var repository = new JdbcPropertyBranchMembershipRepository(
+                JdbcClient.create(new SingleConnectionDataSource(connection, true))
+            );
+            var current = repository.findCurrent(
+                java.util.UUID.fromString("00000000-0000-0000-0000-000000000004"),
+                Instant.parse("2026-04-01T00:00:00Z")
+            );
+
+            assertThat(current).isPresent();
+            assertThat(current.orElseThrow().membershipVersion()).isEqualTo(2L);
+            assertThat(current.orElseThrow().effectiveFrom())
+                .isEqualTo(Instant.parse("2026-03-01T00:00:00Z"));
         }
     }
 }
