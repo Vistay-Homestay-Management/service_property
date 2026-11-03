@@ -9,11 +9,20 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 class PropertyPartitionRecordServiceTest {
     private static final Instant NOW = Instant.parse("2026-10-29T05:00:00Z");
     private static final UUID PROPERTY_ID = UUID.fromString("10000000-0000-0000-0000-000000000001");
     private static final UUID BRANCH_ID = UUID.fromString("20000000-0000-0000-0000-000000000001");
+
+    @Test
+    void productionConstructorIsExplicitlySelectedForSpringInjection() throws NoSuchMethodException {
+        var constructor = PropertyPartitionRecordService.class
+            .getConstructor(PropertyBranchMembershipRepository.class);
+
+        assertThat(constructor.isAnnotationPresent(Autowired.class)).isTrue();
+    }
 
     @Test
     void resolvesAnActiveEffectiveMembership() {

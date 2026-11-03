@@ -3,6 +3,7 @@ package com.vistay.property.application;
 import java.time.Clock;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,7 @@ public class PropertyPartitionRecordService implements PropertyPartitionRecordRe
     private final PropertyBranchMembershipRepository memberships;
     private final Clock clock;
 
+    @Autowired
     public PropertyPartitionRecordService(PropertyBranchMembershipRepository memberships) {
         this(memberships, Clock.systemUTC());
     }
