@@ -1,3 +1,4 @@
+-- Forward migration after the existing V1-V4 property schema history.
 SET search_path TO app, extensions, public;
 
 CREATE TABLE property_attribute_definitions (

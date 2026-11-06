@@ -1,3 +1,4 @@
+-- Forward migration after the V5 property attribute catalog.
 SET search_path TO app, extensions, public;
 
 CREATE OR REPLACE FUNCTION protect_property_attribute_version() RETURNS trigger AS $$
