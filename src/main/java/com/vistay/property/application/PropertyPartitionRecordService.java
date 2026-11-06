@@ -1,6 +1,8 @@
 package com.vistay.property.application;
 
 import java.time.Clock;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +27,14 @@ public class PropertyPartitionRecordService implements PropertyPartitionRecordRe
     @Override
     @Transactional(readOnly = true)
     public Optional<Record> find(UUID propertyId) {
-        if (!memberships.propertyExists(propertyId)) {
-            return Optional.empty();
-        }
-        return Optional.of(memberships.findCurrent(propertyId, clock.instant())
-            .filter(value -> memberships.activeBranchExists(value.branchId()))
-            .map(value -> new Record(propertyId, value.branchId(), value.membershipVersion()))
-            .orElseGet(() -> new Record(propertyId, null, 0)));
+        return findAll(List.of(propertyId)).stream().findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Record> findAll(Collection<UUID> propertyIds) {
+        return memberships.findPartitionRecords(propertyIds, clock.instant()).stream()
+            .map(value -> new Record(value.propertyId(), value.branchId(), value.membershipVersion()))
+            .toList();
     }
 }
