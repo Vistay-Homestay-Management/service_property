@@ -9,6 +9,12 @@ spring:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:4}
       minimum-idle: ${DB_POOL_MIN_IDLE:0}
       schema: app
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:1s}
   jpa:
     open-in-view: false
     hibernate:
@@ -30,6 +36,12 @@ spring:
       path: /graphql
     graphiql:
       enabled: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_BACKOFFICE_ISSUER:http://localhost:8180/realms/vistay-backoffice}
+          jwk-set-uri: ${KEYCLOAK_BACKOFFICE_JWKS_URI:http://localhost:8180/realms/vistay-backoffice/protocol/openid-connect/certs}
   grpc:
     server:
       port: ${GRPC_SERVER_PORT:9090}
@@ -37,6 +49,11 @@ spring:
         enabled: ${GRPC_TLS_ENABLED:true}
         bundle: ${GRPC_SSL_BUNDLE:grpc-property-server}
         client-auth: require
+    client:
+      channel:
+        user:
+          address: ${USER_GRPC_ADDRESS:static://localhost:9091}
+          negotiation-type: ${USER_GRPC_NEGOTIATION_TYPE:TLS}
   ssl:
     bundle:
       pem:
@@ -79,6 +96,11 @@ management:
       show-details: never
 
 vistay:
+  security:
+    audience: ${KEYCLOAK_BACKOFFICE_AUDIENCE:vistay-backoffice-api}
+  authorization:
+    role-policy-schema-version: ${AUTHORIZATION_ROLE_POLICY_SCHEMA_VERSION:2}
+    grpc-deadline: ${AUTHORIZATION_GRPC_DEADLINE:2s}
   grpc:
     allowed-caller-uris: ${GRPC_ALLOWED_CALLER_URIS:spiffe://vistay/service/booking,spiffe://vistay/service/finance}
     maximum-deadline: ${GRPC_MAXIMUM_DEADLINE:2s}
