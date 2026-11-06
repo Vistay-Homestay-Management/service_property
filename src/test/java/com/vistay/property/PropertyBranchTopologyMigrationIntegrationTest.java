@@ -32,7 +32,7 @@ class PropertyBranchTopologyMigrationIntegrationTest {
             .load()
             .migrate();
         assertThat(result.success).isTrue();
-        assertThat(result.targetSchemaVersion).isEqualTo("4");
+        assertThat(result.targetSchemaVersion).isEqualTo("6");
     }
 
     @AfterAll
