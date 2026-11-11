@@ -84,7 +84,6 @@ input PropertyAttributeRulesInput {
 }
 
 input PropertyAttributeApplicabilityInput {
-  propertyTypes: [String!]
   operatingModels: [String!]
 }
 
