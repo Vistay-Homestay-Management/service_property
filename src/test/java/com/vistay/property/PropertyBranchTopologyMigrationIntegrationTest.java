@@ -32,7 +32,7 @@ class PropertyBranchTopologyMigrationIntegrationTest {
             .load()
             .migrate();
         assertThat(result.success).isTrue();
-        assertThat(result.targetSchemaVersion).isEqualTo("6");
+        assertThat(result.targetSchemaVersion).isEqualTo("7");
     }
 
     @AfterAll
@@ -55,9 +55,12 @@ class PropertyBranchTopologyMigrationIntegrationTest {
                 INSERT INTO buildings(id, area_id, code, name, address_line)
                 VALUES ('00000000-0000-0000-0000-000000000003',
                         '00000000-0000-0000-0000-000000000002', 'BLD-1', 'Building 1', '1 Test Street');
-                INSERT INTO properties(id, building_id, code, name, operating_model)
+                INSERT INTO building_floors(id, building_id, code, name, floor_number)
+                VALUES ('00000000-0000-0000-0000-000000000006',
+                        '00000000-0000-0000-0000-000000000003', 'F01', 'Floor 1', 1);
+                INSERT INTO properties(id, floor_id, code, name, operating_model)
                 VALUES ('00000000-0000-0000-0000-000000000004',
-                        '00000000-0000-0000-0000-000000000003', 'PROP-1', 'Property 1', 'OWNED');
+                        '00000000-0000-0000-0000-000000000006', 'PROP-1', 'Property 1', 'OWNED');
                 INSERT INTO operating_branches(id, code, name)
                 VALUES ('00000000-0000-0000-0000-000000000005', 'BR-1', 'Branch 1');
                 INSERT INTO property_branch_memberships(

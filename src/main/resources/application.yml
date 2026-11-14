@@ -52,8 +52,9 @@ spring:
     client:
       channel:
         user:
-          address: ${USER_GRPC_ADDRESS:static://localhost:9091}
-          negotiation-type: ${USER_GRPC_NEGOTIATION_TYPE:TLS}
+          target: ${USER_GRPC_ADDRESS:static://localhost:9091}
+          ssl:
+            bundle: ${USER_GRPC_SSL_BUNDLE:grpc-user-client}
   ssl:
     bundle:
       pem:
@@ -63,6 +64,12 @@ spring:
             private-key: ${PROPERTY_GRPC_SERVER_KEY:file:/run/secrets/grpc/server.key}
           truststore:
             certificate: ${PROPERTY_GRPC_CLIENT_CA_CERT:file:/run/secrets/grpc/ca.crt}
+        grpc-user-client:
+          keystore:
+            certificate: ${GRPC_CLIENT_CERT:file:/run/secrets/grpc-client/property.crt}
+            private-key: ${GRPC_CLIENT_KEY:file:/run/secrets/grpc-client/property.key}
+          truststore:
+            certificate: ${GRPC_SERVER_CA_CERT:file:/run/secrets/grpc-client/ca.crt}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
     properties:
