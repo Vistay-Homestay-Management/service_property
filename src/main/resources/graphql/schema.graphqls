@@ -1,5 +1,7 @@
 type Query {
   propertyServiceInfo: PropertyServiceInfo!
+  propertyPortfolio(search: String, operatingModel: String): PropertyPortfolio!
+  ownerContracts(propertyId: ID, status: String): [OwnerContract!]!
   propertyAttributeCatalog(includeDrafts: Boolean! = false): [PropertyAttributeDefinition!]!
   propertyAttributeValues(propertyId: ID!): [PropertyAttributeValue!]!
   propertyOperationalSummary: PropertyOperationalSummary!
@@ -12,10 +14,151 @@ type PropertyOperationalSummary {
 }
 
 type Mutation {
+  createCity(input: CreateCityInput!): PropertyCity!
+  createArea(input: CreateAreaInput!): PropertyArea!
+  createBuilding(input: CreateBuildingInput!): PropertyBuilding!
+  createBuildingFloor(input: CreateBuildingFloorInput!): PropertyFloor!
+  createPropertyUnit(input: CreatePropertyUnitInput!): PropertyUnit!
+  createOwnerContract(input: CreateOwnerContractInput!): OwnerContract!
   createPropertyAttributeDraft(input: PropertyAttributeDraftInput!): PropertyAttributeDefinition!
   publishPropertyAttribute(definitionId: ID!, expectedRowVersion: String!, reason: String!): PropertyAttributeDefinition!
   retirePropertyAttribute(definitionId: ID!, expectedRowVersion: String!, reason: String!): PropertyAttributeDefinition!
   setPropertyAttributeValue(input: PropertyAttributeValueInput!): PropertyAttributeValue!
+}
+
+type PropertyPortfolio {
+  branches: [OperatingBranch!]!
+  cities: [PropertyCity!]!
+}
+
+type OperatingBranch {
+  id: ID!
+  code: String!
+  name: String!
+}
+
+type PropertyCity {
+  id: ID!
+  code: String!
+  name: String!
+  areas: [PropertyArea!]!
+}
+
+type PropertyArea {
+  id: ID!
+  cityId: ID!
+  code: String!
+  name: String!
+  buildings: [PropertyBuilding!]!
+}
+
+type PropertyBuilding {
+  id: ID!
+  areaId: ID!
+  code: String!
+  name: String!
+  address: String!
+  floors: [PropertyFloor!]!
+}
+
+type PropertyFloor {
+  id: ID!
+  buildingId: ID!
+  code: String!
+  name: String!
+  floorNumber: Int
+  units: [PropertyUnit!]!
+}
+
+type PropertyUnit {
+  id: ID!
+  floorId: ID!
+  branchId: ID
+  code: String!
+  unitNumber: String
+  name: String!
+  operatingModel: String!
+  operationalStatus: String!
+  areaSqm: String
+  bedroomCount: Int!
+  bathroomCount: Int!
+  capacity: Int!
+  basePricePerNight: String
+  currency: String!
+  hostProfileId: ID
+  version: String!
+}
+
+type OwnerContract {
+  id: ID!
+  contractNumber: String!
+  startDate: String!
+  endDate: String!
+  status: String!
+  notes: String
+  version: String!
+  parties: [OwnerContractParty!]!
+  propertyTerms: [OwnerContractPropertyTerm!]!
+}
+
+type OwnerContractParty {
+  hostProfileId: ID!
+  partyRole: String!
+  ownershipPercent: String
+  primary: Boolean!
+}
+
+type OwnerContractPropertyTerm {
+  propertyId: ID!
+  operatingModel: String!
+  effectiveFrom: String!
+  effectiveTo: String!
+  fixedAmount: String
+  managementFeePercent: String
+  paymentPeriod: String!
+  paymentCycleCount: Int!
+  currency: String!
+  status: String!
+}
+
+input CreateCityInput { code: String!, name: String! }
+input CreateAreaInput { cityId: ID!, code: String!, name: String! }
+input CreateBuildingInput { areaId: ID!, code: String!, name: String!, address: String! }
+input CreateBuildingFloorInput {
+  buildingId: ID!
+  code: String!
+  name: String!
+  floorNumber: Int
+  sortOrder: Int = 0
+}
+input CreatePropertyUnitInput {
+  floorId: ID!
+  branchId: ID!
+  code: String!
+  unitNumber: String
+  name: String!
+  operatingModel: String!
+  areaSqm: String
+  bedroomCount: Int = 0
+  bathroomCount: Int = 0
+  capacity: Int = 1
+  basePricePerNight: String
+  currency: String = "VND"
+}
+input CreateOwnerContractInput {
+  contractNumber: String!
+  propertyId: ID!
+  hostProfileId: ID!
+  operatingModel: String!
+  startDate: String!
+  endDate: String!
+  fixedAmount: String
+  managementFeePercent: String
+  paymentPeriod: String = "MONTH"
+  paymentCycleCount: Int = 1
+  currency: String = "VND"
+  status: String = "ACTIVE"
+  notes: String
 }
 
 type PropertyServiceInfo {
