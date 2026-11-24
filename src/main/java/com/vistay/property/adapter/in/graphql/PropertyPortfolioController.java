@@ -1,5 +1,6 @@
 package com.vistay.property.adapter.in.graphql;
 
+import com.vistay.property.observability.PropertyBusinessMetrics;
 import graphql.GraphqlErrorException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,10 +24,26 @@ import org.springframework.transaction.annotation.Transactional;
 public class PropertyPortfolioController {
     private static final List<String> OPERATING_MODELS = List.of("OWNED", "LEASED_BY_VISTAY", "MANAGEMENT");
     private static final List<String> CONTRACT_STATUSES = List.of("DRAFT", "ACTIVE", "EXPIRING", "RENEWING");
+    private static final Map<String, String> VIETNAM_ADMINISTRATIVE_UNITS = Map.ofEntries(
+        Map.entry("01", "Hà Nội"), Map.entry("04", "Cao Bằng"), Map.entry("08", "Tuyên Quang"),
+        Map.entry("11", "Điện Biên"), Map.entry("12", "Lai Châu"), Map.entry("14", "Sơn La"),
+        Map.entry("15", "Lào Cai"), Map.entry("19", "Thái Nguyên"), Map.entry("20", "Lạng Sơn"),
+        Map.entry("22", "Quảng Ninh"), Map.entry("24", "Bắc Ninh"), Map.entry("25", "Phú Thọ"),
+        Map.entry("31", "Hải Phòng"), Map.entry("33", "Hưng Yên"), Map.entry("37", "Ninh Bình"),
+        Map.entry("38", "Thanh Hóa"), Map.entry("40", "Nghệ An"), Map.entry("42", "Hà Tĩnh"),
+        Map.entry("44", "Quảng Trị"), Map.entry("46", "Huế"), Map.entry("48", "Đà Nẵng"),
+        Map.entry("51", "Quảng Ngãi"), Map.entry("52", "Gia Lai"), Map.entry("56", "Khánh Hòa"),
+        Map.entry("66", "Đắk Lắk"), Map.entry("68", "Lâm Đồng"), Map.entry("75", "Đồng Nai"),
+        Map.entry("79", "Hồ Chí Minh"), Map.entry("80", "Tây Ninh"), Map.entry("82", "Đồng Tháp"),
+        Map.entry("86", "Vĩnh Long"), Map.entry("91", "An Giang"), Map.entry("92", "Cần Thơ"),
+        Map.entry("96", "Cà Mau")
+    );
     private final JdbcClient jdbc;
+    private final PropertyBusinessMetrics metrics;
 
-    public PropertyPortfolioController(JdbcClient jdbc) {
+    public PropertyPortfolioController(JdbcClient jdbc, PropertyBusinessMetrics metrics) {
         this.jdbc = jdbc;
+        this.metrics = metrics;
     }
 
     @QueryMapping
@@ -110,10 +127,12 @@ public class PropertyPortfolioController {
     @MutationMapping @Transactional @RequiresPermission("property:create")
     public PropertyCity createCity(@AuthenticationPrincipal Jwt jwt, @Argument CreateCityInput input) {
         var id = UUID.randomUUID();
+        var code = required(input.code(), "code");
+        var officialName = officialVietnamCityName(code);
         jdbc.sql("INSERT INTO cities(id, code, name) VALUES (:id, :code, :name)")
-            .param("id", id).param("code", required(input.code(), "code").toUpperCase()).param("name", required(input.name(), "name")).update();
+            .param("id", id).param("code", code).param("name", officialName).update();
         audit(actor(jwt), "property.city.created", "CITY", id);
-        return new PropertyCity(id, input.code().trim().toUpperCase(), input.name().trim(), List.of());
+        return new PropertyCity(id, code, officialName, List.of());
     }
 
     @MutationMapping @Transactional @RequiresPermission("property:create")
@@ -168,6 +187,7 @@ public class PropertyPortfolioController {
                 """).param("propertyId", id).param("branchId", input.branchId()).param("actorId", actor).update();
         audit(actor, "property.created", "PROPERTY", id);
         outbox("PROPERTY", id, "property.created.v1", 0);
+        metrics.unitCreated();
         return new PropertyUnit(id, input.floorId(), input.branchId(), input.code().trim().toUpperCase(), blankToNull(input.unitNumber()),
             input.name().trim(), model, "ONBOARDING", text(decimal(input.areaSqm())), nonNegative(input.bedroomCount()),
             nonNegative(input.bathroomCount()), Math.max(1, input.capacity() == null ? 1 : input.capacity()),
@@ -270,6 +290,12 @@ public class PropertyPortfolioController {
     private static String required(String value, String field) {
         if (value == null || value.trim().isEmpty()) throw bad("VALIDATION_ERROR", field + " is required");
         return value.trim();
+    }
+    static String officialVietnamCityName(String value) {
+        var code = required(value, "code");
+        var name = VIETNAM_ADMINISTRATIVE_UNITS.get(code);
+        if (name == null) throw bad("INVALID_CITY_CODE", "City code must be selected from the Vietnam administrative catalog");
+        return name;
     }
     private static String blankToNull(String value) { return value == null || value.trim().isEmpty() ? null : value.trim(); }
     private static BigDecimal decimal(String value) { return value == null || value.isBlank() ? null : new BigDecimal(value.trim()); }
