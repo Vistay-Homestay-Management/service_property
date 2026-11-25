@@ -3,6 +3,14 @@ plugins {
 	id("org.springframework.boot") version "4.1.1"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("com.google.protobuf") version "0.9.6"
+	id("org.sonarqube") version "7.6.0.18749"
+}
+
+sonar {
+	properties {
+		property("sonar.projectKey", "service_property")
+		property("sonar.projectName", "service_property")
+	}
 }
 
 group = "com.vistay"
