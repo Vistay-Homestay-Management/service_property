@@ -1,6 +1,7 @@
 type Query {
   propertyServiceInfo: PropertyServiceInfo!
   propertyPortfolio(search: String, operatingModel: String): PropertyPortfolio!
+  propertyAccessCredential(propertyId: ID!): PropertyAccessCredential!
   ownerContracts(propertyId: ID, status: String): [OwnerContract!]!
   propertyAttributeCatalog(includeDrafts: Boolean! = false): [PropertyAttributeDefinition!]!
   propertyAttributeValues(propertyId: ID!): [PropertyAttributeValue!]!
@@ -14,11 +15,13 @@ type PropertyOperationalSummary {
 }
 
 type Mutation {
+  createOperatingBranch(input: CreateOperatingBranchInput!): OperatingBranch!
   createCity(input: CreateCityInput!): PropertyCity!
   createArea(input: CreateAreaInput!): PropertyArea!
   createBuilding(input: CreateBuildingInput!): PropertyBuilding!
   createBuildingFloor(input: CreateBuildingFloorInput!): PropertyFloor!
   createPropertyUnit(input: CreatePropertyUnitInput!): PropertyUnit!
+  setPropertyAccessCredential(input: PropertyAccessCredentialInput!): PropertyAccessCredential!
   createOwnerContract(input: CreateOwnerContractInput!): OwnerContract!
   createPropertyAttributeDraft(input: PropertyAttributeDraftInput!): PropertyAttributeDefinition!
   publishPropertyAttribute(definitionId: ID!, expectedRowVersion: String!, reason: String!): PropertyAttributeDefinition!
@@ -89,6 +92,13 @@ type PropertyUnit {
   version: String!
 }
 
+type PropertyAccessCredential {
+  propertyId: ID!
+  configured: Boolean!
+  keyVersion: Int!
+  version: String!
+}
+
 type OwnerContract {
   id: ID!
   contractNumber: String!
@@ -121,6 +131,7 @@ type OwnerContractPropertyTerm {
   status: String!
 }
 
+input CreateOperatingBranchInput { code: String!, name: String! }
 input CreateCityInput { code: String!, name: String! }
 input CreateAreaInput { cityId: ID!, code: String!, name: String! }
 input CreateBuildingInput { areaId: ID!, code: String!, name: String!, address: String! }
@@ -144,6 +155,11 @@ input CreatePropertyUnitInput {
   capacity: Int = 1
   basePricePerNight: String
   currency: String = "VND"
+}
+input PropertyAccessCredentialInput {
+  propertyId: ID!
+  accessCode: String!
+  expectedVersion: String!
 }
 input CreateOwnerContractInput {
   contractNumber: String!

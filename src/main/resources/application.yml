@@ -113,6 +113,13 @@ vistay:
   authorization:
     role-policy-schema-version: ${AUTHORIZATION_ROLE_POLICY_SCHEMA_VERSION:2}
     grpc-deadline: ${AUTHORIZATION_GRPC_DEADLINE:2s}
+  property-access:
+    vault:
+      address: ${VAULT_ADDR:http://localhost:8200}
+      token: ${VAULT_TOKEN:}
+      token-file: ${VAULT_TOKEN_FILE:}
+      transit-mount: ${VAULT_TRANSIT_MOUNT:transit}
+      access-key: ${VAULT_PROPERTY_ACCESS_KEY:vistay-property-access}
   grpc:
     allowed-caller-uris: ${GRPC_ALLOWED_CALLER_URIS:spiffe://vistay/service/booking,spiffe://vistay/service/finance}
     maximum-deadline: ${GRPC_MAXIMUM_DEADLINE:2s}

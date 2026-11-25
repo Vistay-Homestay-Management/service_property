@@ -10,7 +10,12 @@ import org.springframework.graphql.data.method.annotation.QueryMapping;
 class ResolverPermissionCoverageTest {
     @Test
     void everyGraphQlResolverIsPermissionPinnedOrExplicitlyPublic() {
-        var controllers = List.of(PropertyAttributeController.class, ServiceInfoQuery.class);
+        var controllers = List.of(
+            PropertyAttributeController.class,
+            PropertyOperationalSummaryController.class,
+            PropertyPortfolioController.class,
+            ServiceInfoQuery.class
+        );
         var uncovered = controllers.stream().flatMap(type ->
                 java.util.Arrays.stream(type.getDeclaredMethods())
                     .filter(method -> method.isAnnotationPresent(QueryMapping.class)

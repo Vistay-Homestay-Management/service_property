@@ -1,5 +1,6 @@
 package com.vistay.property.adapter.in.graphql;
 
+import com.vistay.property.adapter.out.security.VaultPropertyAccessProtection;
 import com.vistay.property.observability.PropertyBusinessMetrics;
 import graphql.GraphqlErrorException;
 import java.math.BigDecimal;
@@ -40,10 +41,13 @@ public class PropertyPortfolioController {
     );
     private final JdbcClient jdbc;
     private final PropertyBusinessMetrics metrics;
+    private final VaultPropertyAccessProtection accessProtection;
 
-    public PropertyPortfolioController(JdbcClient jdbc, PropertyBusinessMetrics metrics) {
+    public PropertyPortfolioController(JdbcClient jdbc, PropertyBusinessMetrics metrics,
+        VaultPropertyAccessProtection accessProtection) {
         this.jdbc = jdbc;
         this.metrics = metrics;
+        this.accessProtection = accessProtection;
     }
 
     @QueryMapping
@@ -102,6 +106,18 @@ public class PropertyPortfolioController {
     }
 
     @QueryMapping
+    @RequiresPermission("property:read")
+    public PropertyAccessCredential propertyAccessCredential(@Argument UUID propertyId) {
+        return jdbc.sql("SELECT access_password_secret_ref, version FROM properties WHERE id = :id")
+            .param("id", propertyId)
+            .query((rs, row) -> {
+                var secretRef = rs.getString("access_password_secret_ref");
+                return new PropertyAccessCredential(propertyId, secretRef != null && !secretRef.isBlank(),
+                    vaultKeyVersion(secretRef), Long.toString(rs.getLong("version")));
+            }).optional().orElseThrow(() -> bad("PROPERTY_NOT_FOUND", "Property was not found"));
+    }
+
+    @QueryMapping
     @RequiresPermission("contract:read")
     public List<OwnerContract> ownerContracts(@Argument UUID propertyId, @Argument String status) {
         var normalized = status == null ? "" : status.trim().toUpperCase();
@@ -122,6 +138,17 @@ public class PropertyPortfolioController {
                 rs.getObject("start_date", LocalDate.class), rs.getObject("end_date", LocalDate.class), rs.getString("status"),
                 rs.getString("notes"), rs.getLong("version"))).list();
         return contracts.stream().map(this::contract).toList();
+    }
+
+    @MutationMapping @Transactional @RequiresPermission("property:create")
+    public OperatingBranch createOperatingBranch(@AuthenticationPrincipal Jwt jwt, @Argument CreateOperatingBranchInput input) {
+        var id = UUID.randomUUID();
+        var code = required(input.code(), "code").toUpperCase();
+        var name = required(input.name(), "name");
+        jdbc.sql("INSERT INTO operating_branches(id, code, name) VALUES (:id, :code, :name)")
+            .param("id", id).param("code", code).param("name", name).update();
+        audit(actor(jwt), "property.branch.created", "OPERATING_BRANCH", id);
+        return new OperatingBranch(id, code, name);
     }
 
     @MutationMapping @Transactional @RequiresPermission("property:create")
@@ -192,6 +219,37 @@ public class PropertyPortfolioController {
             input.name().trim(), model, "ONBOARDING", text(decimal(input.areaSqm())), nonNegative(input.bedroomCount()),
             nonNegative(input.bathroomCount()), Math.max(1, input.capacity() == null ? 1 : input.capacity()),
             text(decimal(input.basePricePerNight())), currency(input.currency()), null, "0");
+    }
+
+    @MutationMapping @Transactional @RequiresPermission("property:update")
+    public PropertyAccessCredential setPropertyAccessCredential(
+        @AuthenticationPrincipal Jwt jwt,
+        @Argument PropertyAccessCredentialInput input
+    ) {
+        var currentVersion = jdbc.sql("SELECT version FROM properties WHERE id = :id")
+            .param("id", input.propertyId()).query(Long.class).optional()
+            .orElseThrow(() -> bad("PROPERTY_NOT_FOUND", "Property was not found"));
+        long expectedVersion;
+        try { expectedVersion = Long.parseLong(required(input.expectedVersion(), "expectedVersion")); }
+        catch (NumberFormatException invalid) { throw bad("INVALID_PROPERTY_VERSION", "Property version is invalid"); }
+        if (currentVersion != expectedVersion) {
+            throw bad("STALE_PROPERTY_VERSION", "Property was updated by another request");
+        }
+        VaultPropertyAccessProtection.ProtectedAccessCode protectedCode;
+        try { protectedCode = accessProtection.protect(input.propertyId(), input.accessCode()); }
+        catch (IllegalArgumentException invalid) { throw bad("INVALID_ACCESS_CODE", invalid.getMessage()); }
+        var newVersion = expectedVersion + 1;
+        var updated = jdbc.sql("""
+                UPDATE properties
+                SET access_password_secret_ref = :secretRef, version = :newVersion, updated_at = now()
+                WHERE id = :id AND version = :expectedVersion
+                """).param("secretRef", protectedCode.ciphertext()).param("newVersion", newVersion)
+            .param("id", input.propertyId()).param("expectedVersion", expectedVersion).update();
+        if (updated != 1) throw bad("STALE_PROPERTY_VERSION", "Property was updated by another request");
+        var actor = actor(jwt);
+        audit(actor, "property.access-credential.updated", "PROPERTY", input.propertyId());
+        outbox("PROPERTY", input.propertyId(), "property.access-credential.updated.v1", newVersion);
+        return new PropertyAccessCredential(input.propertyId(), true, protectedCode.keyVersion(), Long.toString(newVersion));
     }
 
     @MutationMapping @Transactional @RequiresPermission("contract:create")
@@ -306,6 +364,13 @@ public class PropertyPortfolioController {
         if (!result.matches("[A-Z]{3}")) throw bad("INVALID_CURRENCY", "Currency must be a three-letter code");
         return result;
     }
+    private static int vaultKeyVersion(String secretRef) {
+        if (secretRef == null || secretRef.isBlank()) return 0;
+        var parts = secretRef.split(":", 3);
+        if (parts.length != 3 || !"vault".equals(parts[0]) || !parts[1].startsWith("v")) return 0;
+        try { return Math.max(0, Integer.parseInt(parts[1].substring(1))); }
+        catch (NumberFormatException invalid) { return 0; }
+    }
     private static GraphqlErrorException bad(String code, String message) {
         return GraphqlErrorException.newErrorException().message(message).errorClassification(ErrorType.BAD_REQUEST).extensions(Map.of("code", code)).build();
     }
@@ -346,17 +411,20 @@ public class PropertyPortfolioController {
     public record PropertyUnit(UUID id, UUID floorId, UUID branchId, String code, String unitNumber, String name, String operatingModel,
         String operationalStatus, String areaSqm, int bedroomCount, int bathroomCount, int capacity, String basePricePerNight,
         String currency, UUID hostProfileId, String version) {}
+    public record PropertyAccessCredential(UUID propertyId, boolean configured, int keyVersion, String version) {}
     public record OwnerContract(UUID id, String contractNumber, String startDate, String endDate, String status, String notes, String version,
         List<OwnerContractParty> parties, List<OwnerContractPropertyTerm> propertyTerms) {}
     public record OwnerContractParty(UUID hostProfileId, String partyRole, String ownershipPercent, boolean primary) {}
     public record OwnerContractPropertyTerm(UUID propertyId, String operatingModel, String effectiveFrom, String effectiveTo,
         String fixedAmount, String managementFeePercent, String paymentPeriod, int paymentCycleCount, String currency, String status) {}
+    public record CreateOperatingBranchInput(String code, String name) {}
     public record CreateCityInput(String code, String name) {}
     public record CreateAreaInput(UUID cityId, String code, String name) {}
     public record CreateBuildingInput(UUID areaId, String code, String name, String address) {}
     public record CreateBuildingFloorInput(UUID buildingId, String code, String name, Integer floorNumber, Integer sortOrder) {}
     public record CreatePropertyUnitInput(UUID floorId, UUID branchId, String code, String unitNumber, String name, String operatingModel,
         String areaSqm, Integer bedroomCount, Integer bathroomCount, Integer capacity, String basePricePerNight, String currency) {}
+    public record PropertyAccessCredentialInput(UUID propertyId, String accessCode, String expectedVersion) {}
     public record CreateOwnerContractInput(String contractNumber, UUID propertyId, UUID hostProfileId, String operatingModel,
         LocalDate startDate, LocalDate endDate, String fixedAmount, String managementFeePercent, String paymentPeriod,
         Integer paymentCycleCount, String currency, String status, String notes) {}
